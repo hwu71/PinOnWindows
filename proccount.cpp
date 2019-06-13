@@ -64,7 +64,7 @@ typedef struct RtnCount
 } RTN_COUNT;
 
 // Linked list of instruction counts for each routine
-//RTN_COUNT* RtnList = 0;
+RTN_COUNT* RtnList = 0;
 
 // This function is called before every instruction is executed
 VOID docount(UINT64* counter)
@@ -101,7 +101,7 @@ void deleteList(RTN_COUNT** head_ref) {
 // Pin calls this function every time a new rtn is executed
 VOID Routine(RTN rtn, VOID* v)
 {
-	RTN_COUNT* RtnList = (RTN_COUNT*)(v);
+
 	// Allocate a counter for this routine
 	RTN_COUNT* rc = new RTN_COUNT;
 
@@ -145,7 +145,6 @@ VOID Routine(RTN rtn, VOID* v)
 // It prints the name and count for each procedure
 VOID Fini(INT32 code, VOID* v)
 {
-	RTN_COUNT* RtnList = (RTN_COUNT*)(v);
 	ofstream outFile;
 	int j;
 	char fileName[20];
@@ -202,14 +201,11 @@ BOOL FollowChild(CHILD_PROCESS childProcess, VOID* userData) {
 	cout << "FileName: " << fileName << endl;
 	outFile.open(fileName);*/
 
-	// Linked list of instruction counts for each routine
-	RTN_COUNT* ChildRtnList = 0;
-
 	// Register Routine to be called to instrument rtn
-	RTN_AddInstrumentFunction(Routine, ChildRtnList);
+	RTN_AddInstrumentFunction(Routine, 0);
 
 	// Register Fini to be called when the application exits
-	PIN_AddFiniFunction(Fini, ChildRtnList);
+	PIN_AddFiniFunction(Fini, 0);
 	return TRUE;
 }
 /* ===================================================================== */
@@ -245,15 +241,11 @@ int main(int argc, char* argv[])
 	cout << "FileName: " << fileName << endl;
 	outFile.open(fileName);
 	*/
-
-	// Linked list of instruction counts for each routine
-	RTN_COUNT* RtnList = 0;
-
 	// Register Routine to be called to instrument rtn
-	RTN_AddInstrumentFunction(Routine, RtnList);
+	RTN_AddInstrumentFunction(Routine, 0);
 
 	// Register Fini to be called when the application exits
-	PIN_AddFiniFunction(Fini, RtnList);
+	PIN_AddFiniFunction(Fini, 0);
 
 	PIN_AddFollowChildProcessFunction(FollowChild, 0);
 
