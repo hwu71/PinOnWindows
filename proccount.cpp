@@ -166,19 +166,27 @@ VOID Fini(INT32 code, VOID* v)
 		<< "Size" << ","
 		<< "Instructions" << endl;
 
-	for (RTN_COUNT* rc = RtnList; rc; rc = rc->_next)
+	RTN_COUNT* rc = RtnList;
+	RTN_COUNT* next;
+	//for (RTN_COUNT* rc = RtnList; rc; rc = rc->_next)
+	while(rc)
 	{
-		if (rc->_icount > 0)
+		if (rc->_icount > 0) {
 			outFile << rc->_name << ","
-			<< rc->_image << ","
-			<< rc->_secName << ","
-			<< rc->_secSize << ","
-			<< hex << rc->_offset << dec << ","
-			<< rc->_rtnCount << ","
-			<< rc->_pid << ","
-			<< rc->_rtnSize << ","
-			<< rc->_icount << endl;
+				<< rc->_image << ","
+				<< rc->_secName << ","
+				<< rc->_secSize << ","
+				<< hex << rc->_offset << dec << ","
+				<< rc->_rtnCount << ","
+				<< rc->_pid << ","
+				<< rc->_rtnSize << ","
+				<< rc->_icount << endl;
+		}
+		next = rc->_next;
+		delete(rc);
+		rc = next;
 	}
+	//RtnList = NULL;
 	outFile.close();
 	//deleteList(&RtnList);
 }
