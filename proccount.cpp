@@ -40,11 +40,12 @@ END_LEGAL */
 #include "pin.H"
 
 
+//using namespace std;
+
 KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
 	"o", "proccount.csv", "specify file name");
 
-ofstream outFile;
-PIN_LOCK lock;
+//ofstream outFile;
 int test_count = 0;
 // Holds instruction count for a single procedure
 typedef struct RtnCount
@@ -146,12 +147,10 @@ VOID Routine(RTN rtn, VOID* v)
 // It prints the name and count for each procedure
 VOID Fini(INT32 code, VOID* v)
 {
-	PIN_GetLock(&lock, getpid());
 	test_count++;
-	cout << test_count << "TestCount"  << getpid() << endl;
-	PIN_ReleaseLock(&lock);
+	//cout << test_count << "TestCount"  << getpid() << endl;
 
-	//ofstream outFile;
+	ofstream outFile;
 	int j;
 	char fileName[20];
 	j = sprintf(fileName, "%s", KnobOutputFile.Value().c_str());
@@ -160,9 +159,6 @@ VOID Fini(INT32 code, VOID* v)
 	cout << test_count << " FileName: " << fileName << endl;
 	outFile.open(fileName);
 
-	//fprintf(stdout, "In Fini: Linked List Head: %p\n", RtnList);
-	//cout << "In Fini1: Linked List Head:" << RtnList << endl;
-	//cout << "In Fini2: Linked List Head:" << RtnList << endl;
 	outFile << "Procedure" << ","
 		<< "Image" << ","
 		<< "Section Name" << ","
@@ -191,30 +187,23 @@ VOID Fini(INT32 code, VOID* v)
 		}
 	}
 	outFile.close();
-	//deleteList(&RtnList);
+	deleteList(&RtnList);
 }
 
-// This function is called when the application exits
-// It prints the name and count for each procedure
 VOID Fini_Child(INT32 code, VOID* v)
 {
-	PIN_GetLock(&lock, getpid());
 	test_count++;
-	cout << test_count << "TestCount" << getpid() << endl;
-	PIN_ReleaseLock(&lock);
-
-	//ofstream outFile;
+	//cout << test_count << "TestCount"  << getpid() << endl;
+	pid_t pid = (pid_t)v;
+	ofstream outFile;
 	int j;
 	char fileName[20];
 	j = sprintf(fileName, "%s", KnobOutputFile.Value().c_str());
-	j += sprintf(fileName + j, "%ld", (long)getpid());
+	j += sprintf(fileName + j, "%ld",pid);
 	j += sprintf(fileName + j, "%s", ".csv");
-	cout << test_count << "Child FileName: " << fileName << endl;
+	cout <<"In Fini_Child: " << test_count << " FileName: " << fileName << endl;
 	outFile.open(fileName);
 
-	//fprintf(stdout, "In Fini: Linked List Head: %p\n", RtnList);
-	//cout << "In Fini1: Linked List Head:" << RtnList << endl;
-	//cout << "In Fini2: Linked List Head:" << RtnList << endl;
 	outFile << "Procedure" << ","
 		<< "Image" << ","
 		<< "Section Name" << ","
@@ -243,33 +232,23 @@ VOID Fini_Child(INT32 code, VOID* v)
 		}
 	}
 	outFile.close();
-	//deleteList(&RtnList);
+	deleteList(&RtnList);
 }
 
 BOOL FollowChild(CHILD_PROCESS childProcess, VOID* userData) {
 
-	// Initialize symbol table code, needed for rtn instrumentation
-	//PIN_InitSymbols();
+	pid_t pid= CHILD_PROCESS_GetId(childProcess);
+	cout << "In Child: PID: " << pid << endl;
 
-	// Reset the Linked List
-	//deleteList(&RtnList);
-	cout << "In Child: Linked List Head:" << RtnList << endl;
+	//RTN_AddInstrumentFunction(Routine, 0);
 
-	/*int j;
-	char fileName[20];
-	j = sprintf(fileName, "%s", KnobOutputFile.Value().c_str());
-	j += sprintf(fileName + j, "%ld", (long)getpid());
-	j += sprintf(fileName + j, "%s", ".csv");
-	cout << "FileName: " << fileName << endl;
-	outFile.open(fileName);
-	*/
-	// Register Routine to be called to instrument rtn
-	RTN_AddInstrumentFunction(Routine, 0);
 
 	// Register Fini to be called when the application exits
-	PIN_AddFiniFunction(Fini_Child, 0);
+	PIN_AddFiniFunction(Fini_Child, (void*)pid);
 	return TRUE;
 }
+
+
 /* ===================================================================== */
 /* Print Help Message                                                    */
 /* ===================================================================== */
@@ -282,6 +261,9 @@ INT32 Usage()
 	return -1;
 }
 
+
+
+
 /* ===================================================================== */
 /* Main                                                                  */
 /* ===================================================================== */
@@ -293,25 +275,14 @@ int main(int argc, char* argv[])
 
 	// Initialize pin
 	if (PIN_Init(argc, argv)) return Usage();
-	//char * fileName = sprintf(fileName, "%s", KnobOutputFile.Value().c_str());
 
-	/*int j;
-	char fileName[20];
-	j = sprintf(fileName, "%s", KnobOutputFile.Value().c_str());
-	j += sprintf(fileName + j, "%ld", (long)getpid());
-	j += sprintf(fileName + j, "%s", ".csv");
-	cout << "FileName: " << fileName << endl;
-	outFile.open(fileName);*/
 	
-	// Register Routine to be called to instrument rtn
 	RTN_AddInstrumentFunction(Routine, 0);
 
 	PIN_AddFollowChildProcessFunction(FollowChild, 0);
 
 	// Register Fini to be called when the application exits
 	PIN_AddFiniFunction(Fini, 0);
-
-
 
 	// Start the program, never returns
 	PIN_StartProgram();
