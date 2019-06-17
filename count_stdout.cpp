@@ -1,49 +1,10 @@
-/*BEGIN_LEGAL
-Intel Open Source License
-
-Copyright (c) 2002-2018 Intel Corporation. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.  Redistributions
-in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or
-other materials provided with the distribution.  Neither the name of
-the Intel Corporation nor the names of its contributors may be used to
-endorse or promote products derived from this software without
-specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE INTEL OR
-ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-END_LEGAL */
-//
-// This tool counts the number of times a routine is executed and
-// the number of instructions executed in a routine
-//
-#include <fstream>
+//#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <string.h>
 #include <unistd.h>
 #include "pin.H"
 
-
-//using namespace std;
-
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
-	"o", "proccount.csv", "specify file name");
 
 //ofstream outFile;
 int test_count = 0;
@@ -121,10 +82,12 @@ VOID Routine(RTN rtn, VOID* v)
 	//rc->_icount = 0;
 	rc->_pid = getpid();
 
+	//PIN_GetLock(&lock,getpid());
 	// Add to list of routines
 	rc->_next = RtnList;
 	RtnList = rc;
 	//cout << "New entry: " << RtnList->_name << endl;
+	//PIN_ReleaseLock(&lock);
 
 	RTN_Open(rtn);
 
@@ -146,18 +109,8 @@ VOID Routine(RTN rtn, VOID* v)
 VOID Fini(INT32 code, VOID* v)
 {
 	test_count++;
-	//cout << test_count << "TestCount"  << getpid() << endl;
 
-	ofstream outFile;
-	int j;
-	char fileName[20];
-	j = sprintf(fileName, "%s", KnobOutputFile.Value().c_str());
-	j += sprintf(fileName + j, "%ld", (long)getpid());
-	j += sprintf(fileName + j, "%s", ".csv");
-	cout << "In Fini_Prarent, count: " << test_count << ", fileName: " << fileName << endl;
-	outFile.open(fileName);
-
-	outFile << "Procedure" << ","
+	cout << "Procedure" << ","
 		<< "Image" << ","
 		<< "Section Name" << ","
 		<< "Section Size" << ","
@@ -165,15 +118,11 @@ VOID Fini(INT32 code, VOID* v)
 		<< "Calls" << ","
 		<< "Pid" << ","
 		<< "Size" << endl;
-		//<< "Instructions" << endl;
 
-	//RTN_COUNT* rc = RtnList;
-	//RTN_COUNT* next;
 	for (RTN_COUNT* rc = RtnList; rc; rc = rc->_next)
 	{
-		//if (rc->_icount > 0) {
 		if (rc->_rtnCount > 0){
-			outFile << rc->_name << ","
+			cout << rc->_name << ","
 				<< rc->_image << ","
 				<< rc->_secName << ","
 				<< rc->_secSize << ","
@@ -181,28 +130,16 @@ VOID Fini(INT32 code, VOID* v)
 				<< rc->_rtnCount << ","
 				<< rc->_pid << ","
 				<< rc->_rtnSize << endl;
-				//<< rc->_icount << endl;
 		}
 	}
-	outFile.close();
 	//deleteList(&RtnList);
 }
 
 VOID Fini_Child(INT32 code, VOID* v)
 {
 	test_count++;
-	//cout << test_count << "TestCount"  << getpid() << endl;
-	pid_t pid = (pid_t)v;
-	ofstream outFile;
-	int j;
-	char fileName[20];
-	j = sprintf(fileName, "%s", KnobOutputFile.Value().c_str());
-	j += sprintf(fileName + j, "%ld",pid);
-	j += sprintf(fileName + j, "%s", ".csv");
-	cout << "In Fini_Child, count: " << test_count << ", fileName: " << fileName << endl;
-	outFile.open(fileName);
 
-	outFile << "Procedure" << ","
+	cout << "Procedure" << ","
 		<< "Image" << ","
 		<< "Section Name" << ","
 		<< "Section Size" << ","
@@ -210,15 +147,11 @@ VOID Fini_Child(INT32 code, VOID* v)
 		<< "Calls" << ","
 		<< "Pid" << ","
 		<< "Size" << endl;
-	//<< "Instructions" << endl;
 
-//RTN_COUNT* rc = RtnList;
-//RTN_COUNT* next;
 	for (RTN_COUNT* rc = RtnList; rc; rc = rc->_next)
 	{
-		//if (rc->_icount > 0) {
 		if (rc->_rtnCount > 0) {
-			outFile << rc->_name << ","
+			out << rc->_name << ","
 				<< rc->_image << ","
 				<< rc->_secName << ","
 				<< rc->_secSize << ","
@@ -226,27 +159,20 @@ VOID Fini_Child(INT32 code, VOID* v)
 				<< rc->_rtnCount << ","
 				<< rc->_pid << ","
 				<< rc->_rtnSize << endl;
-			//<< rc->_icount << endl;
 		}
 	}
-	outFile.close();
-	//deleteList(&RtnList);
 }
 
 BOOL FollowChild(CHILD_PROCESS childProcess, VOID* userData) {
 
 	pid_t pid= CHILD_PROCESS_GetId(childProcess);
-	cout << "In Child: PID: " << pid << ", getpid(): "  << getpid() << endl;
+	cout << "In Child: PID: " << pid << " getpid(): "  << getpid() << endl;
 
-	RTN_AddInstrumentFunction(Routine, 0);
+	//RTN_AddInstrumentFunction(Routine, 0);
 
 
 	// Register Fini to be called when the application exits
-	PIN_AddFiniFunction(Fini_Child, (void*)pid);
-
-	// Start the program, never returns
-	//PIN_StartProgram();
-
+  //PIN_AddFiniFunction(Fini_Child,0);
 	return TRUE;
 }
 
@@ -278,7 +204,7 @@ int main(int argc, char* argv[])
 	// Initialize pin
 	if (PIN_Init(argc, argv)) return Usage();
 
-	
+
 	RTN_AddInstrumentFunction(Routine, 0);
 
 	PIN_AddFollowChildProcessFunction(FollowChild, 0);
