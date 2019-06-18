@@ -1,10 +1,11 @@
 //#include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <string.h>
 #include <unistd.h>
 #include "pin.H"
 
+//using namespace std;
+//#include <processthreadsapi.h>
 
 //ofstream outFile;
 int test_count = 0;
