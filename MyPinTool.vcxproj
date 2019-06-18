@@ -255,7 +255,7 @@
     <None Include="..\README" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="proccount.cpp" />
+    <ClCompile Include="count_stdout.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -20,7 +20,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="proccount.cpp">
+    <ClCompile Include="count_stdout.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

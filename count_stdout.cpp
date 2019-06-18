@@ -151,7 +151,7 @@ VOID Fini_Child(INT32 code, VOID* v)
 	for (RTN_COUNT* rc = RtnList; rc; rc = rc->_next)
 	{
 		if (rc->_rtnCount > 0) {
-			out << rc->_name << ","
+			cout << rc->_name << ","
 				<< rc->_image << ","
 				<< rc->_secName << ","
 				<< rc->_secSize << ","

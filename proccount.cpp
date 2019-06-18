@@ -32,15 +32,18 @@ END_LEGAL */
 // This tool counts the number of times a routine is executed and
 // the number of instructions executed in a routine
 //
+
 #include <fstream>
-#include <iomanip>
 #include <iostream>
-#include <string.h>
 #include <unistd.h>
 #include "pin.H"
 
-
-//using namespace std;
+/*using namespace std;
+namespace {
+#define _WINDOWS_H_PATH_ C:\pin\extras\crt\include
+#include <Windows.h>
+}
+*/
 
 KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
 	"o", "proccount.csv", "specify file name");
@@ -83,7 +86,7 @@ const char* StripPath(const char* path)
 		return path;
 }
 
-// Function to delete the entire linked list
+/*// Function to delete the entire linked list
 void deleteList(RTN_COUNT** head_ref) {
 
 	// Deref head_ref to get the real head_ref
@@ -97,6 +100,23 @@ void deleteList(RTN_COUNT** head_ref) {
 	}
 	// Deref head_ref to affect the real head back in the caller
 	*head_ref = NULL;
+	//cout << "Reset the Linked List." << endl;
+
+}*/
+// Function to delete the entire linked list
+void deleteList() {
+
+	// Deref head_ref to get the real head_ref
+	RTN_COUNT* current = RtnList;
+	RTN_COUNT* next;
+
+	while (current != NULL) {
+		next = current->_next;
+		delete(current);
+		current = next;
+	}
+	// Deref head_ref to affect the real head back in the caller
+	RtnList= NULL;
 	//cout << "Reset the Linked List." << endl;
 
 }
@@ -119,6 +139,12 @@ VOID Routine(RTN rtn, VOID* v)
 	rc->_rtnSize = RTN_Size(rtn);
 	rc->_rtnCount = 0;
 	//rc->_icount = 0;
+	/*if (v == 0) {
+		rc->_pid = getpid();
+	}
+	else {
+		rc->_pid = CHILD_PROCESS_GetId(*(CHILD_PROCESS*)v);
+	}*/
 	rc->_pid = getpid();
 
 	// Add to list of routines
@@ -130,13 +156,6 @@ VOID Routine(RTN rtn, VOID* v)
 
 	// Insert a call at the entry point of a routine to increment the call count
 	RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)docount, IARG_PTR, &(rc->_rtnCount), IARG_END);
-
-	// For each instruction of the routine
-	/*for (INS ins = RTN_InsHead(rtn); INS_Valid(ins); ins = INS_Next(ins))
-	{
-		// Insert a call to docount to increment the instruction counter for this RTN
-		INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)docount, IARG_PTR, &(rc->_icount), IARG_END);
-	}*/
 
 	RTN_Close(rtn);
 }
@@ -236,13 +255,17 @@ VOID Fini_Child(INT32 code, VOID* v)
 BOOL FollowChild(CHILD_PROCESS childProcess, VOID* userData) {
 
 	pid_t pid= CHILD_PROCESS_GetId(childProcess);
+	/*TCHAR szFileName[MAX_PATH + 1];
+	GetModuleFileName(NULL, szFileName, MAX_PATH + 1);
+	cout << "FileName: " << szFileName << endl;*/
 	cout << "In Child: PID: " << pid << ", getpid(): "  << getpid() << endl;
 
+	//deleteList();
 	RTN_AddInstrumentFunction(Routine, 0);
 
 
 	// Register Fini to be called when the application exits
-	PIN_AddFiniFunction(Fini_Child, (void*)pid);
+	//PIN_AddFiniFunction(Fini_Child, (void*)pid);
 
 	// Start the program, never returns
 	//PIN_StartProgram();
@@ -281,7 +304,7 @@ int main(int argc, char* argv[])
 	
 	RTN_AddInstrumentFunction(Routine, 0);
 
-	PIN_AddFollowChildProcessFunction(FollowChild, 0);
+	//PIN_AddFollowChildProcessFunction(FollowChild, 0);
 
 	// Register Fini to be called when the application exits
 	PIN_AddFiniFunction(Fini, 0);
