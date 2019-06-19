@@ -268,8 +268,7 @@ BOOL FollowChild(CHILD_PROCESS childProcess, VOID* userData) {
 	//cout << "FileName: " << szFileName << endl;
 	cout << "In Child entry: Child PID: " << pid << ", getpid(): "  << getpid() << ", GetCurrentProcessId: "<< WIND::GetCurrentProcessId()<< endl;
 
-	//deleteList();
-	RTN_AddInstrumentFunction(Routine, 0);
+	//RTN_AddInstrumentFunction(Routine, 0);
 
 	return TRUE;
 }
