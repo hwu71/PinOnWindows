@@ -28,6 +28,8 @@ bld/
 [Ll]og/
 result/
 obj-intel64/
+*.csv
+*.log
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
