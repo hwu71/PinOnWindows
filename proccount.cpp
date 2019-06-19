@@ -38,12 +38,11 @@ END_LEGAL */
 #include <unistd.h>
 #include "pin.H"
 
-/*using namespace std;
-namespace {
-#define _WINDOWS_H_PATH_ C:\pin\extras\crt\include
+//using namespace std;
+namespace WIND{
 #include <Windows.h>
 }
-*/
+
 
 KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
 	"o", "proccount.csv", "specify file name");
@@ -65,6 +64,7 @@ typedef struct RtnCount
 	UINT64 _rtnSize;
 	//UINT64 _icount;
 	UINT64 _pid;
+	pid_t _pid_win;
 	struct RtnCount* _next;
 } RTN_COUNT;
 
@@ -146,6 +146,7 @@ VOID Routine(RTN rtn, VOID* v)
 		rc->_pid = CHILD_PROCESS_GetId(*(CHILD_PROCESS*)v);
 	}*/
 	rc->_pid = getpid();
+	rc->_pid_win = WIND::GetCurrentProcessId();
 
 	// Add to list of routines
 	rc->_next = RtnList;
@@ -171,9 +172,11 @@ VOID Fini(INT32 code, VOID* v)
 	int j;
 	char fileName[20];
 	j = sprintf(fileName, "%s", KnobOutputFile.Value().c_str());
+	//j = sprintf(fileName, "%s", WIND::GetModuleFileName);
 	j += sprintf(fileName + j, "%ld", (long)getpid());
 	j += sprintf(fileName + j, "%s", ".csv");
-	cout << "In Fini_Prarent, count: " << test_count << ", fileName: " << fileName << endl;
+	cout << "In Fini_Prarent, count: " << test_count << ", fileName: " << fileName
+	 << " getpid(): "  << getpid() << ", GetCurrentProcessId: "<< WIND::GetCurrentProcessId()<< endl;
 	outFile.open(fileName);
 
 	outFile << "Procedure" << ","
@@ -183,6 +186,7 @@ VOID Fini(INT32 code, VOID* v)
 		<< "Offset" << ","
 		<< "Calls" << ","
 		<< "Pid" << ","
+		<< "Pid Win" << ","
 		<< "Size" << endl;
 		//<< "Instructions" << endl;
 
@@ -199,6 +203,7 @@ VOID Fini(INT32 code, VOID* v)
 				<< hex << rc->_offset << dec << ","
 				<< rc->_rtnCount << ","
 				<< rc->_pid << ","
+				<< rc->_pid_win << ","
 				<< rc->_rtnSize << endl;
 				//<< rc->_icount << endl;
 		}
@@ -206,7 +211,7 @@ VOID Fini(INT32 code, VOID* v)
 	outFile.close();
 	//deleteList(&RtnList);
 }
-
+/*
 VOID Fini_Child(INT32 code, VOID* v)
 {
 	test_count++;
@@ -216,7 +221,8 @@ VOID Fini_Child(INT32 code, VOID* v)
 	int j;
 	char fileName[20];
 	j = sprintf(fileName, "%s", KnobOutputFile.Value().c_str());
-	j += sprintf(fileName + j, "%ld",pid);
+	//j = sprintf(fileName, "%s", WIND::GetModuleFileName);
+	j += sprintf(fileName + j, "%ld", (long)pid);
 	j += sprintf(fileName + j, "%s", ".csv");
 	cout << "In Fini_Child, count: " << test_count << ", fileName: " << fileName << endl;
 	outFile.open(fileName);
@@ -228,15 +234,16 @@ VOID Fini_Child(INT32 code, VOID* v)
 		<< "Offset" << ","
 		<< "Calls" << ","
 		<< "Pid" << ","
+		<< "Pid Win" << ","
 		<< "Size" << endl;
-	//<< "Instructions" << endl;
+		//<< "Instructions" << endl;
 
-//RTN_COUNT* rc = RtnList;
-//RTN_COUNT* next;
+	//RTN_COUNT* rc = RtnList;
+	//RTN_COUNT* next;
 	for (RTN_COUNT* rc = RtnList; rc; rc = rc->_next)
 	{
 		//if (rc->_icount > 0) {
-		if (rc->_rtnCount > 0) {
+		if (rc->_rtnCount > 0){
 			outFile << rc->_name << ","
 				<< rc->_image << ","
 				<< rc->_secName << ","
@@ -244,35 +251,28 @@ VOID Fini_Child(INT32 code, VOID* v)
 				<< hex << rc->_offset << dec << ","
 				<< rc->_rtnCount << ","
 				<< rc->_pid << ","
+				<< rc->_pid_win << ","
 				<< rc->_rtnSize << endl;
-			//<< rc->_icount << endl;
+				//<< rc->_icount << endl;
 		}
 	}
 	outFile.close();
 	//deleteList(&RtnList);
 }
-
+*/
 BOOL FollowChild(CHILD_PROCESS childProcess, VOID* userData) {
 
 	pid_t pid= CHILD_PROCESS_GetId(childProcess);
-	/*TCHAR szFileName[MAX_PATH + 1];
-	GetModuleFileName(NULL, szFileName, MAX_PATH + 1);
-	cout << "FileName: " << szFileName << endl;*/
-	cout << "In Child: PID: " << pid << ", getpid(): "  << getpid() << endl;
+	//TCHAR szFileName[MAX_PATH + 1];
+	//GetModuleFileName(NULL,szFileName,MAX_PATH+1);
+	//cout << "FileName: " << szFileName << endl;
+	cout << "In Child entry: Child PID: " << pid << ", getpid(): "  << getpid() << ", GetCurrentProcessId: "<< WIND::GetCurrentProcessId()<< endl;
 
 	//deleteList();
 	RTN_AddInstrumentFunction(Routine, 0);
 
-
-	// Register Fini to be called when the application exits
-	//PIN_AddFiniFunction(Fini_Child, (void*)pid);
-
-	// Start the program, never returns
-	//PIN_StartProgram();
-
 	return TRUE;
 }
-
 
 /* ===================================================================== */
 /* Print Help Message                                                    */
@@ -301,10 +301,10 @@ int main(int argc, char* argv[])
 	// Initialize pin
 	if (PIN_Init(argc, argv)) return Usage();
 
-	
+
 	RTN_AddInstrumentFunction(Routine, 0);
 
-	//PIN_AddFollowChildProcessFunction(FollowChild, 0);
+	PIN_AddFollowChildProcessFunction(FollowChild, 0);
 
 	// Register Fini to be called when the application exits
 	PIN_AddFiniFunction(Fini, 0);

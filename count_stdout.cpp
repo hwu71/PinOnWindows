@@ -5,8 +5,9 @@
 #include "pin.H"
 
 //using namespace std;
-//#include <processthreadsapi.h>
-
+namespace WIND{
+	#include <Windows.h>
+}
 //ofstream outFile;
 int test_count = 0;
 // Holds instruction count for a single procedure
@@ -81,7 +82,8 @@ VOID Routine(RTN rtn, VOID* v)
 	rc->_rtnSize = RTN_Size(rtn);
 	rc->_rtnCount = 0;
 	//rc->_icount = 0;
-	rc->_pid = getpid();
+	rc->_pid = WIND::GetCurrentProcessId();
+	//getpid();
 
 	//PIN_GetLock(&lock,getpid());
 	// Add to list of routines
@@ -204,7 +206,7 @@ int main(int argc, char* argv[])
 
 	// Initialize pin
 	if (PIN_Init(argc, argv)) return Usage();
-
+cout << "Current process id = " << WIND::GetCurrentProcessId() << endl << flush;
 
 	RTN_AddInstrumentFunction(Routine, 0);
 
