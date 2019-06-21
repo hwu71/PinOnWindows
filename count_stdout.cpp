@@ -1,13 +1,11 @@
-//#include <fstream>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <string.h>
 #include <unistd.h>
 #include "pin.H"
 
 //using namespace std;
-namespace WIND{
-	#include <Windows.h>
-}
 //ofstream outFile;
 int test_count = 0;
 // Holds instruction count for a single procedure
@@ -17,8 +15,8 @@ typedef struct RtnCount
 	string _image;
 	string _secName;
 	UINT64 _secSize;
-	ADDRINT _address;
-	ADDRINT _imgLowAddress;
+	//ADDRINT _address;
+	//ADDRINT _imgLowAddress;
 	ADDRINT _offset;
 	RTN _rtn;
 	UINT64 _rtnCount;
@@ -76,21 +74,17 @@ VOID Routine(RTN rtn, VOID* v)
 	rc->_image = StripPath(IMG_Name(SEC_Img(RTN_Sec(rtn))).c_str());
 	rc->_secName = SEC_Name(RTN_Sec(rtn));
 	rc->_secSize = SEC_Size(RTN_Sec(rtn));
-	rc->_address = RTN_Address(rtn);
-	rc->_imgLowAddress = IMG_LowAddress(SEC_Img(RTN_Sec(rtn)));
-	rc->_offset = rc->_address - rc->_imgLowAddress;
+	//rc->_address = RTN_Address(rtn);
+	//rc->_imgLowAddress = IMG_LowAddress(SEC_Img(RTN_Sec(rtn)));
+	rc->_offset = RTN_Address(rtn) - IMG_LowAddress(SEC_Img(RTN_Sec(rtn)));
 	rc->_rtnSize = RTN_Size(rtn);
 	rc->_rtnCount = 0;
 	//rc->_icount = 0;
-	rc->_pid = WIND::GetCurrentProcessId();
-	//getpid();
+	rc->_pid = getpid();
 
-	//PIN_GetLock(&lock,getpid());
 	// Add to list of routines
 	rc->_next = RtnList;
 	RtnList = rc;
-	//cout << "New entry: " << RtnList->_name << endl;
-	//PIN_ReleaseLock(&lock);
 
 	RTN_Open(rtn);
 
@@ -112,7 +106,7 @@ VOID Routine(RTN rtn, VOID* v)
 VOID Fini(INT32 code, VOID* v)
 {
 	test_count++;
-
+	cout << "In Fini_Prarent, count: " << test_count <<  "pid: "  << getpid() << endl;
 	cout << "Procedure" << ","
 		<< "Image" << ","
 		<< "Section Name" << ","
@@ -141,7 +135,7 @@ VOID Fini(INT32 code, VOID* v)
 VOID Fini_Child(INT32 code, VOID* v)
 {
 	test_count++;
-
+	cout << "In Fini_Child, count: " << test_count <<  "pid: "  << getpid() << endl;
 	cout << "Procedure" << ","
 		<< "Image" << ","
 		<< "Section Name" << ","
@@ -164,18 +158,18 @@ VOID Fini_Child(INT32 code, VOID* v)
 				<< rc->_rtnSize << endl;
 		}
 	}
+	//deleteList(&RtnList);
 }
 
 BOOL FollowChild(CHILD_PROCESS childProcess, VOID* userData) {
 
 	pid_t pid= CHILD_PROCESS_GetId(childProcess);
-	cout << "In Child: PID: " << pid << " getpid(): "  << getpid() << endl;
+	cout << "In Child: child pid: " << pid << ", parent pid: "  << getpid() << endl;
 
 	//RTN_AddInstrumentFunction(Routine, 0);
 
-
 	// Register Fini to be called when the application exits
-  //PIN_AddFiniFunction(Fini_Child,0);
+  PIN_AddFiniFunction(Fini_Child,0);
 	return TRUE;
 }
 
@@ -206,7 +200,7 @@ int main(int argc, char* argv[])
 
 	// Initialize pin
 	if (PIN_Init(argc, argv)) return Usage();
-cout << "Current process id = " << WIND::GetCurrentProcessId() << endl << flush;
+	cout << "Current process id = " << getpid() << endl << flush;
 
 	RTN_AddInstrumentFunction(Routine, 0);
 

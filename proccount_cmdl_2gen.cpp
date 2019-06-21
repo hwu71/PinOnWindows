@@ -4,44 +4,14 @@
 #include "pin.H"
 
 //using namespace std;
-namespace WIND{
-#include <Windows.h>
-}
-
 //General configuration - Tool full path
 
 KNOB<string> KnobToolsFullPath(KNOB_MODE_WRITEONCE,         "pintool",
                                "tools_path", "./obj-intel64/", "grand parent tool full path");
 
-
-/*//Parent configuration - Application and PinTool name
-KNOB<string> KnobParentApplicationName(KNOB_MODE_WRITEONCE,         "pintool",
-                                       "parent_app_name", "win_parent_process", "parent application name");
-
-KNOB<string> KnobParentToolName(KNOB_MODE_WRITEONCE,         "pintool",
-                                "parent_tool_name", "parent_tool", "parent tool full path");
-*/
-
-//Child configuration - Application and PinTool name
-//KNOB<string> KnobChildApplicationName(KNOB_MODE_WRITEONCE,         "pintool",
-//                                      "child_app_name", "win_child_process", "child application name");
-
 KNOB<string> KnobChildToolName(KNOB_MODE_WRITEONCE,         "pintool",
                                "child_tool_name", "proccount_cmdl_3gen.dll", "child tool full path");
 
-
-/*// Current process id received by grand_parent tool
-KNOB<OS_PROCESS_ID> KnobCurrentProcessId(KNOB_MODE_WRITEONCE,         "pintool",
-                                  "process_id", "0", "current process id");
-
-// Whether to check current process id received in KnobCurrentProcessId
-KNOB<BOOL> KnobCheckCurrentProcessId(KNOB_MODE_WRITEONCE,         "pintool",
-                                         "check_process_id", "0", "current process id");
-
-// Whether to probe the child
-KNOB<BOOL>   KnobProbeChild(KNOB_MODE_WRITEONCE,                "pintool",
-                            "probe_child", "0", "probe the child process");
-*/
 KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
 	"o", "proccount.csv", "specify file name");
 
@@ -54,15 +24,12 @@ typedef struct RtnCount
 	string _image;
 	string _secName;
 	UINT64 _secSize;
-	ADDRINT _address;
-	ADDRINT _imgLowAddress;
 	ADDRINT _offset;
 	RTN _rtn;
 	UINT64 _rtnCount;
 	UINT64 _rtnSize;
 	//UINT64 _icount;
 	UINT64 _pid;
-	pid_t _pid_win;
 	struct RtnCount* _next;
 } RTN_COUNT;
 
@@ -84,7 +51,7 @@ const char* StripPath(const char* path)
 		return path;
 }
 
-/*// Function to delete the entire linked list
+// Function to delete the entire linked list
 void deleteList(RTN_COUNT** head_ref) {
 
 	// Deref head_ref to get the real head_ref
@@ -99,25 +66,8 @@ void deleteList(RTN_COUNT** head_ref) {
 	// Deref head_ref to affect the real head back in the caller
 	*head_ref = NULL;
 	//cout << "Reset the Linked List." << endl;
-
-}*/
-// Function to delete the entire linked list
-void deleteList() {
-
-	// Deref head_ref to get the real head_ref
-	RTN_COUNT* current = RtnList;
-	RTN_COUNT* next;
-
-	while (current != NULL) {
-		next = current->_next;
-		delete(current);
-		current = next;
-	}
-	// Deref head_ref to affect the real head back in the caller
-	RtnList= NULL;
-	//cout << "Reset the Linked List." << endl;
-
 }
+
 // Pin calls this function every time a new rtn is executed
 VOID Routine(RTN rtn, VOID* v)
 {
@@ -131,25 +81,13 @@ VOID Routine(RTN rtn, VOID* v)
 	rc->_image = StripPath(IMG_Name(SEC_Img(RTN_Sec(rtn))).c_str());
 	rc->_secName = SEC_Name(RTN_Sec(rtn));
 	rc->_secSize = SEC_Size(RTN_Sec(rtn));
-	rc->_address = RTN_Address(rtn);
-	rc->_imgLowAddress = IMG_LowAddress(SEC_Img(RTN_Sec(rtn)));
-	rc->_offset = rc->_address - rc->_imgLowAddress;
+	rc->_offset = RTN_Address(rtn)- IMG_LowAddress(SEC_Img(RTN_Sec(rtn)));
 	rc->_rtnSize = RTN_Size(rtn);
 	rc->_rtnCount = 0;
-	//rc->_icount = 0;
-	/*if (v == 0) {
-		rc->_pid = getpid();
-	}
-	else {
-		rc->_pid = CHILD_PROCESS_GetId(*(CHILD_PROCESS*)v);
-	}*/
 	rc->_pid = getpid();
-	rc->_pid_win = WIND::GetCurrentProcessId();
-
 	// Add to list of routines
 	rc->_next = RtnList;
 	RtnList = rc;
-	//cout << "New entry: " << RtnList->_name << endl;
 
 	RTN_Open(rtn);
 
@@ -173,8 +111,7 @@ VOID Fini(INT32 code, VOID* v)
 	//j = sprintf(fileName, "%s", WIND::GetModuleFileName);
 	j += sprintf(fileName + j, "%ld", (long)getpid());
 	j += sprintf(fileName + j, "%s", ".csv");
-	cout << "In Fini_cmdl_2gen, count: " << test_count << ", fileName: " << fileName
-	 << " getpid(): "  << getpid() << ", GetCurrentProcessId: "<< WIND::GetCurrentProcessId()<< endl;
+	cout << "(2gen) In Fini_Prarent, count: " << test_count << ", fileName: " << fileName << "pid: "  << getpid() << endl;
 	outFile.open(fileName);
 
 	outFile << "Procedure" << ","
@@ -184,12 +121,8 @@ VOID Fini(INT32 code, VOID* v)
 		<< "Offset" << ","
 		<< "Calls" << ","
 		<< "Pid" << ","
-		<< "Pid Win" << ","
 		<< "Size" << endl;
-		//<< "Instructions" << endl;
 
-	//RTN_COUNT* rc = RtnList;
-	//RTN_COUNT* next;
 	for (RTN_COUNT* rc = RtnList; rc; rc = rc->_next)
 	{
 		//if (rc->_icount > 0) {
@@ -201,13 +134,12 @@ VOID Fini(INT32 code, VOID* v)
 				<< hex << rc->_offset << dec << ","
 				<< rc->_rtnCount << ","
 				<< rc->_pid << ","
-				<< rc->_pid_win << ","
 				<< rc->_rtnSize << endl;
 				//<< rc->_icount << endl;
 		}
 	}
 	outFile.close();
-	deleteList();
+	//deleteList();
 }
 BOOL FollowChild(CHILD_PROCESS childProcess, VOID * userData)
 {
@@ -219,7 +151,7 @@ BOOL FollowChild(CHILD_PROCESS childProcess, VOID * userData)
 
     CHILD_PROCESS_GetCommandLine(childProcess, &appArgc, &appArgv);
 
-		cout << "In Child entry(cmdl_2gen): Child PID: " << pid << ", getpid(): "  << getpid() << ", GetCurrentProcessId: "<< WIND::GetCurrentProcessId()<< endl;
+		cout << "(2gen) In Child entry: Child PID: " << pid << ", parent pid: "  << getpid() << endl;
 
 
     //Set Pin's command line for child process
@@ -245,19 +177,6 @@ BOOL FollowChild(CHILD_PROCESS childProcess, VOID * userData)
     return TRUE;
 }
 
-
-/*BOOL FollowChild(CHILD_PROCESS childProcess, VOID* userData) {
-
-	pid_t pid= CHILD_PROCESS_GetId(childProcess);
-	//TCHAR szFileName[MAX_PATH + 1];
-	//GetModuleFileName(NULL,szFileName,MAX_PATH+1);
-	//cout << "FileName: " << szFileName << endl;
-	cout << "In Child entry: Child PID: " << pid << ", getpid(): "  << getpid() << ", GetCurrentProcessId: "<< WIND::GetCurrentProcessId()<< endl;
-
-	RTN_AddInstrumentFunction(Routine, 0);
-
-	return TRUE;
-}*/
 
 /* ===================================================================== */
 /* Print Help Message                                                    */
@@ -285,7 +204,7 @@ int main(int argc, char* argv[])
 
 	// Initialize pin
 	if (PIN_Init(argc, argv)) return Usage();
-
+  cout << "In 2gen: Current process id = " << getpid() << endl << flush;
 
 	RTN_AddInstrumentFunction(Routine, 0);
 

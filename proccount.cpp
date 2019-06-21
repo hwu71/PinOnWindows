@@ -36,6 +36,7 @@ END_LEGAL */
 #include <fstream>
 #include <iostream>
 #include <unistd.h>
+#include <string.h>
 #include "pin.H"
 
 //using namespace std;
@@ -56,15 +57,14 @@ typedef struct RtnCount
 	string _image;
 	string _secName;
 	UINT64 _secSize;
-	ADDRINT _address;
-	ADDRINT _imgLowAddress;
+	//ADDRINT _address;
+	//ADDRINT _imgLowAddress;
 	ADDRINT _offset;
 	RTN _rtn;
 	UINT64 _rtnCount;
 	UINT64 _rtnSize;
 	//UINT64 _icount;
 	UINT64 _pid;
-	pid_t _pid_win;
 	struct RtnCount* _next;
 } RTN_COUNT;
 
@@ -86,7 +86,7 @@ const char* StripPath(const char* path)
 		return path;
 }
 
-/*// Function to delete the entire linked list
+// Function to delete the entire linked list
 void deleteList(RTN_COUNT** head_ref) {
 
 	// Deref head_ref to get the real head_ref
@@ -101,25 +101,8 @@ void deleteList(RTN_COUNT** head_ref) {
 	// Deref head_ref to affect the real head back in the caller
 	*head_ref = NULL;
 	//cout << "Reset the Linked List." << endl;
-
-}*/
-// Function to delete the entire linked list
-void deleteList() {
-
-	// Deref head_ref to get the real head_ref
-	RTN_COUNT* current = RtnList;
-	RTN_COUNT* next;
-
-	while (current != NULL) {
-		next = current->_next;
-		delete(current);
-		current = next;
-	}
-	// Deref head_ref to affect the real head back in the caller
-	RtnList= NULL;
-	//cout << "Reset the Linked List." << endl;
-
 }
+
 // Pin calls this function every time a new rtn is executed
 VOID Routine(RTN rtn, VOID* v)
 {
@@ -133,26 +116,15 @@ VOID Routine(RTN rtn, VOID* v)
 	rc->_image = StripPath(IMG_Name(SEC_Img(RTN_Sec(rtn))).c_str());
 	rc->_secName = SEC_Name(RTN_Sec(rtn));
 	rc->_secSize = SEC_Size(RTN_Sec(rtn));
-	rc->_address = RTN_Address(rtn);
-	rc->_imgLowAddress = IMG_LowAddress(SEC_Img(RTN_Sec(rtn)));
-	rc->_offset = rc->_address - rc->_imgLowAddress;
+	rc->_offset = RTN_Address(rtn) - IMG_LowAddress(SEC_Img(RTN_Sec(rtn)));
 	rc->_rtnSize = RTN_Size(rtn);
 	rc->_rtnCount = 0;
 	//rc->_icount = 0;
-	/*if (v == 0) {
-		rc->_pid = getpid();
-	}
-	else {
-		rc->_pid = CHILD_PROCESS_GetId(*(CHILD_PROCESS*)v);
-	}*/
 	rc->_pid = getpid();
-	rc->_pid_win = WIND::GetCurrentProcessId();
 
 	// Add to list of routines
 	rc->_next = RtnList;
 	RtnList = rc;
-	//cout << "New entry: " << RtnList->_name << endl;
-
 	RTN_Open(rtn);
 
 	// Insert a call at the entry point of a routine to increment the call count
@@ -163,7 +135,7 @@ VOID Routine(RTN rtn, VOID* v)
 
 // This function is called when the application exits
 // It prints the name and count for each procedure
-VOID Fini(INT32 code, VOID* v)
+VOID Prepare( VOID* v)
 {
 	test_count++;
 	//cout << test_count << "TestCount"  << getpid() << endl;
@@ -175,9 +147,8 @@ VOID Fini(INT32 code, VOID* v)
 	//j = sprintf(fileName, "%s", WIND::GetModuleFileName);
 	j += sprintf(fileName + j, "%ld", (long)getpid());
 	j += sprintf(fileName + j, "%s", ".csv");
-	cout << "In Fini_Prarent, count: " << test_count << ", fileName: " << fileName
-	 << " getpid(): "  << getpid() << ", GetCurrentProcessId: "<< WIND::GetCurrentProcessId()<< endl;
-	outFile.open(fileName);
+	//cout << "In Prepare, count: " << test_count << ", fileName: " << fileName << " pid: "  << getpid()<< endl;
+	outFile.open(fileName,std::ofstream::out | std::ofstream::app);
 
 	outFile << "Procedure" << ","
 		<< "Image" << ","
@@ -186,7 +157,6 @@ VOID Fini(INT32 code, VOID* v)
 		<< "Offset" << ","
 		<< "Calls" << ","
 		<< "Pid" << ","
-		<< "Pid Win" << ","
 		<< "Size" << endl;
 		//<< "Instructions" << endl;
 
@@ -203,7 +173,6 @@ VOID Fini(INT32 code, VOID* v)
 				<< hex << rc->_offset << dec << ","
 				<< rc->_rtnCount << ","
 				<< rc->_pid << ","
-				<< rc->_pid_win << ","
 				<< rc->_rtnSize << endl;
 				//<< rc->_icount << endl;
 		}
@@ -211,20 +180,32 @@ VOID Fini(INT32 code, VOID* v)
 	outFile.close();
 	//deleteList(&RtnList);
 }
-/*
-VOID Fini_Child(INT32 code, VOID* v)
-{
-	test_count++;
-	//cout << test_count << "TestCount"  << getpid() << endl;
-	pid_t pid = (pid_t)v;
+VOID Fini(INT32 code, VOID* V){
 	ofstream outFile;
 	int j;
 	char fileName[20];
 	j = sprintf(fileName, "%s", KnobOutputFile.Value().c_str());
 	//j = sprintf(fileName, "%s", WIND::GetModuleFileName);
-	j += sprintf(fileName + j, "%ld", (long)pid);
+	j += sprintf(fileName + j, "%ld", (long)getpid());
 	j += sprintf(fileName + j, "%s", ".csv");
-	cout << "In Fini_Child, count: " << test_count << ", fileName: " << fileName << endl;
+	//cout << "In Prepare, count: " << test_count << ", fileName: " << fileName << " pid: "  << getpid()<< endl;
+	outFile.open(fileName,std::ofstream::out | std::ofstream::app);
+	outFile << "Process " << getpid() << " ended, Code: " << code << endl;
+	outFile.close();
+}
+/*VOID Fini_Child(INT32 code, VOID* v)
+{
+	test_count++;
+	//cout << test_count << "TestCount"  << getpid() << endl;
+
+	ofstream outFile;
+	int j;
+	char fileName[20];
+	j = sprintf(fileName, "%s", KnobOutputFile.Value().c_str());
+	//j = sprintf(fileName, "%s", WIND::GetModuleFileName);
+	j += sprintf(fileName + j, "%ld", (long)getpid());
+	j += sprintf(fileName + j, "%s", ".csv");
+	cout << "In Fini_Prarent, count: " << test_count << ", fileName: " << fileName << " pid: "  << getpid()<< endl;
 	outFile.open(fileName);
 
 	outFile << "Procedure" << ","
@@ -234,7 +215,6 @@ VOID Fini_Child(INT32 code, VOID* v)
 		<< "Offset" << ","
 		<< "Calls" << ","
 		<< "Pid" << ","
-		<< "Pid Win" << ","
 		<< "Size" << endl;
 		//<< "Instructions" << endl;
 
@@ -251,25 +231,23 @@ VOID Fini_Child(INT32 code, VOID* v)
 				<< hex << rc->_offset << dec << ","
 				<< rc->_rtnCount << ","
 				<< rc->_pid << ","
-				<< rc->_pid_win << ","
 				<< rc->_rtnSize << endl;
 				//<< rc->_icount << endl;
 		}
 	}
 	outFile.close();
 	//deleteList(&RtnList);
-}
-*/
+}*/
 BOOL FollowChild(CHILD_PROCESS childProcess, VOID* userData) {
 
 	pid_t pid= CHILD_PROCESS_GetId(childProcess);
 	//TCHAR szFileName[MAX_PATH + 1];
 	//GetModuleFileName(NULL,szFileName,MAX_PATH+1);
 	//cout << "FileName: " << szFileName << endl;
-	cout << "In Child entry: Child PID: " << pid << ", getpid(): "  << getpid() << ", GetCurrentProcessId: "<< WIND::GetCurrentProcessId()<< endl;
+	//cout << "In Child entry: Child PID: " << pid << ", getpid(): "  << getpid() << ", GetCurrentProcessId: "<< WIND::GetCurrentProcessId()<< endl;
 
 	//RTN_AddInstrumentFunction(Routine, 0);
-
+  //	PIN_AddFiniFunction(Fini_Child,0);
 	return TRUE;
 }
 
@@ -305,8 +283,10 @@ int main(int argc, char* argv[])
 
 	PIN_AddFollowChildProcessFunction(FollowChild, 0);
 
+	PIN_AddPrepareForFiniFunction(Prepare, 0);
+
 	// Register Fini to be called when the application exits
-	PIN_AddFiniFunction(Fini, 0);
+	PIN_AddFiniFunction(Fini,0);
 
 	// Start the program, never returns
 	PIN_StartProgram();
